@@ -292,7 +292,8 @@ dotnet test C:\dev\mu-lab\OpenMU\tests\MUnique.OpenMU.Tests\MUnique.OpenMU.Tests
 |--------|-------------|-------|------------|-------|
 | 1 | `629cb723a` | 46 files (Security overlays, SpeedHack harden, crypto injection, violations EF, InstantMove, CS IP default 6, AC tests) | `feat(security): add ProMU defense layer` | Lab HMAC fallback string is intentional non-prod placeholder; real secrets via env only |
 | 2 | `3f20ab3da` | `InternalRewardsController.cs` | `feat(rewards): add internal rewards API` | Secret from `PROMU_INTERNAL_API_SECRET` env — not hardcoded |
-| 3 | `7dfe735f0` | `AGENTS.md` + this README | `docs(promu): document local integration` | Docs only |
+| 3 | `7dfe735f0` | `AGENTS.md` + audit README | `docs(promu): document local integration` | Docs only |
+| 3b+ | docs follow-ups on tip | audit README only | SHA/table polish (`1ade7fcf0` and later) | Docs only; tip = `git rev-parse HEAD` |
 
 ### Secrets / CRLF inspection (Stage A)
 
@@ -307,8 +308,8 @@ dotnet test C:\dev\mu-lab\OpenMU\tests\MUnique.OpenMU.Tests\MUnique.OpenMU.Tests
 
 | Check | Result |
 |-------|--------|
-| Branch | `master` @ `7dfe735f0` (no new branches) |
-| Ahead of `origin/master` | **3** (local only; not pushed) |
+| Branch | `master` (no new branches); tip via `git rev-parse HEAD` |
+| Ahead of `origin/master` | **4+** ProMU commits (local only; not pushed) |
 | Merge-base with pin | `45678e37f` |
 | `git diff --cached` | empty |
 | Untracked | none |
