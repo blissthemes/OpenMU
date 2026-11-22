@@ -292,7 +292,7 @@ dotnet test C:\dev\mu-lab\OpenMU\tests\MUnique.OpenMU.Tests\MUnique.OpenMU.Tests
 |--------|-------------|-------|------------|-------|
 | 1 | `629cb723a` | 46 files (Security overlays, SpeedHack harden, crypto injection, violations EF, InstantMove, CS IP default 6, AC tests) | `feat(security): add ProMU defense layer` | Lab HMAC fallback string is intentional non-prod placeholder; real secrets via env only |
 | 2 | `3f20ab3da` | `InternalRewardsController.cs` | `feat(rewards): add internal rewards API` | Secret from `PROMU_INTERNAL_API_SECRET` env — not hardcoded |
-| 3 | *(this docs commit)* | `AGENTS.md` + this README | `docs(promu): document local integration` | Docs only |
+| 3 | `7dfe735f0` | `AGENTS.md` + this README | `docs(promu): document local integration` | Docs only |
 
 ### Secrets / CRLF inspection (Stage A)
 
@@ -303,12 +303,17 @@ dotnet test C:\dev\mu-lab\OpenMU\tests\MUnique.OpenMU.Tests\MUnique.OpenMU.Tests
 - **Excluded:** `src/Web/Map/wwwroot/js/MUnique.OpenMU.Web.Map.js` — CRLF-only (`diff --numstat` empty with ignore-CR).
 - **Excluded:** `tests/.../ServerToClientPacketTests.cs` — LuckyCoin packet size stubs, **unrelated** to ProMU AC/rewards (left dirty intentionally).
 
-### Final Git check (expected after docs commit)
+### Final Git check (after Phase 0)
 
-- Branch: `master` (unchanged; no new branches).
-- Base upstream pin: `45678e37f`; ProMU commits on top.
-- `origin` still `https://github.com/MUnique/OpenMU.git` (no push).
-- Remaining dirty (by design): `Map.js` (CRLF), LuckyCoin packet tests.
+| Check | Result |
+|-------|--------|
+| Branch | `master` @ `7dfe735f0` (no new branches) |
+| Ahead of `origin/master` | **3** (local only; not pushed) |
+| Merge-base with pin | `45678e37f` |
+| `git diff --cached` | empty |
+| Untracked | none |
+| Remaining dirty | `Map.js` (CRLF-only status noise), `ServerToClientPacketTests.cs` (+58 LuckyCoin stubs) |
+| `origin` | still `https://github.com/MUnique/OpenMU.git` |
 
 ### Ready for Phase 1?
 
