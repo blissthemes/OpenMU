@@ -1,5 +1,22 @@
 # Agent Instructions
 
+## MU Lab context (local)
+
+This checkout lives under `C:\dev\mu-lab\OpenMU`. Before lab tasks, also read the
+shared docs in the parent folder (do not copy them here):
+
+1. [`../AGENTS.md`](../AGENTS.md) — lab workflow and hard bans
+2. [`../PROJECT_CONTEXT.md`](../PROJECT_CONTEXT.md) — architecture, ports, versions
+3. [`../CURRENT_STATE.md`](../CURRENT_STATE.md) — runtime / stage progress
+4. [`../KNOWN_ISSUES.md`](../KNOWN_ISSUES.md) — when touching related areas
+5. [`../PROJECT_HISTORY.md`](../PROJECT_HISTORY.md) — prior decisions
+
+Lab reminders: no `-reinit`; working client path is Connect **44406** → Server **0**;
+do not restart all game servers while players are online; update parent
+`CURRENT_STATE.md` after substantial finished work.
+
+---
+
 This file is the entry point for AI coding assistants (Claude Code, Copilot,
 Gemini, Codex, …) working in this repository. It also applies to human
 contributors.
