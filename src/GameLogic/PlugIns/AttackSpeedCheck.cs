@@ -69,6 +69,17 @@ internal sealed class AttackSpeedCheck
 
             remainingTokens = state.AttackTokens;
             shouldRecordViolation = !config.ObserveOnly;
+
+            if (shouldRecordViolation)
+            {
+                state.RecentAttackViolations.Enqueue(now);
+                var window = TimeSpan.FromSeconds(Math.Max(1, config.AttackViolationKickWindowSeconds));
+                while (state.RecentAttackViolations.Count > 0
+                       && this._timeProvider.GetElapsedTime(state.RecentAttackViolations.Peek(), now) > window)
+                {
+                    state.RecentAttackViolations.Dequeue();
+                }
+            }
         }
 
         player.Logger.LogDebug(
@@ -82,9 +93,20 @@ internal sealed class AttackSpeedCheck
             remainingTokens,
             config.ObserveOnly ? " Observe-only, the attack is not blocked." : string.Empty);
 
-        // The attack path has no resync response and no score model, so its violations
-        // stay soft and debounced: only sustained violations spread over time can
-        // accumulate toward a punishment, never a single burst.
-        return shouldRecordViolation ? SpeedHackViolationSeverity.Soft : SpeedHackViolationSeverity.None;
+        if (!shouldRecordViolation)
+        {
+            return SpeedHackViolationSeverity.None;
+        }
+
+        // Sustained attack floods within a short window escalate to Reject (kick path).
+        lock (state.Lock)
+        {
+            if (state.RecentAttackViolations.Count >= Math.Max(1, config.AttackViolationKickThreshold))
+            {
+                return SpeedHackViolationSeverity.Reject;
+            }
+        }
+
+        return SpeedHackViolationSeverity.Soft;
     }
 }

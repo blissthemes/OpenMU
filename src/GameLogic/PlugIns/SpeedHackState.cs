@@ -46,6 +46,11 @@ internal sealed class SpeedHackState
     public Queue<long> AlertTimes { get; } = new();
 
     /// <summary>
+    /// Gets recent soft attack-violation timestamps (for short-window kick threshold).
+    /// </summary>
+    public Queue<long> RecentAttackViolations { get; } = new();
+
+    /// <summary>
     /// Gets the sliding window tracking executed walk step costs.
     /// </summary>
     public WalkSpeedWindow WalkWindow { get; } = new();

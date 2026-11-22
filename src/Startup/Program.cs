@@ -22,6 +22,7 @@ using MUnique.OpenMU.Discord;
 using MUnique.OpenMU.FriendServer;
 using MUnique.OpenMU.GameLogic;
 using MUnique.OpenMU.GameLogic.PlugIns.GameEvents;
+using MUnique.OpenMU.GameLogic.PlugIns.Security;
 using MUnique.OpenMU.GameLogic.TestActors;
 using MUnique.OpenMU.GameServer;
 using MUnique.OpenMU.GuildServer;
@@ -465,6 +466,26 @@ internal sealed class Program : IDisposable
         this.AddActorControlEndpoint(builder.Services);
 
         var host = builder.Build();
+
+        if (host.Services.GetService<ISecurityViolationRepository>() is { } violationRepository)
+        {
+            SecurityViolationBus.PublishAsync = async violationEvent =>
+            {
+                await violationRepository.AddAsync(new SecurityViolation
+                {
+                    Id = Guid.NewGuid(),
+                    CreatedAtUtc = DateTime.UtcNow,
+                    AccountLogin = violationEvent.AccountLogin,
+                    CharacterName = violationEvent.CharacterName,
+                    IpAddress = violationEvent.IpAddress,
+                    HwidHash = violationEvent.HwidHash,
+                    Category = violationEvent.Category,
+                    Severity = violationEvent.Severity,
+                    Detail = violationEvent.Detail,
+                    Sanction = violationEvent.Sanction,
+                }).ConfigureAwait(false);
+            };
+        }
 
         // The bot is listed with the other servers, e.g. in the admin panel.
         this._servers.Add(host.Services.GetRequiredService<DiscordIntegration>());

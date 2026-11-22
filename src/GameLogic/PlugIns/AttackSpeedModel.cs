@@ -25,10 +25,10 @@ internal static class AttackSpeedModel
         if (FindProfile(config, skill) is { } profile)
         {
             var speed = GetSpeed(player, profile.SpeedSource);
-            return new AttackSpeedLimit(
-                GetInterval(profile.BaseDelayMs, profile.ScalingFactor, profile.MinimumIntervalMs, speed),
-                profile.SpeedSource,
-                speed);
+            var profileInterval = ApplyPingBuffer(
+                config,
+                GetInterval(profile.BaseDelayMs, profile.ScalingFactor, profile.MinimumIntervalMs, speed));
+            return new AttackSpeedLimit(profileInterval, profile.SpeedSource, speed);
         }
 
         var speedSource = GetDefaultSpeedSource(skill);
@@ -43,10 +43,10 @@ internal static class AttackSpeedModel
             : config.AttackSpeedMinIntervalMs;
         var commonSpeed = GetSpeed(player, speedSource);
 
-        return new AttackSpeedLimit(
-            GetInterval(baseDelayMs, scalingFactor, minimumIntervalMs, commonSpeed),
-            speedSource,
-            commonSpeed);
+        var interval = ApplyPingBuffer(
+            config,
+            GetInterval(baseDelayMs, scalingFactor, minimumIntervalMs, commonSpeed));
+        return new AttackSpeedLimit(interval, speedSource, commonSpeed);
     }
 
     private static AttackSpeedProfile? FindProfile(SpeedHackDetectConfiguration config, Skill? skill)
@@ -102,6 +102,18 @@ internal static class AttackSpeedModel
     {
         var interval = Math.Max(minimumIntervalMs, baseDelayMs - (speed * scalingFactor));
         return Math.Max(1.0, interval);
+    }
+
+    /// <summary>
+    /// Applies the configured ping buffer to a resolved interval.
+    /// </summary>
+    /// <param name="config">The configuration.</param>
+    /// <param name="intervalMs">The base interval.</param>
+    /// <returns>The buffered interval (slightly shorter allowed minimum).</returns>
+    internal static double ApplyPingBuffer(SpeedHackDetectConfiguration config, double intervalMs)
+    {
+        var buffer = Math.Clamp(config.PingBufferPercent, 0, 0.5);
+        return Math.Max(1.0, intervalMs * (1.0 - buffer));
     }
 
     /// <summary>

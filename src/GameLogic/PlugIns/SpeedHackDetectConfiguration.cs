@@ -237,4 +237,23 @@ public class SpeedHackDetectConfiguration
     [MemberOfAggregate]
     [System.ComponentModel.DataAnnotations.ScaffoldColumn(true)]
     public ICollection<AttackSpeedProfile> AttackSpeedProfiles { get; set; } = new List<AttackSpeedProfile>();
+
+    /// <summary>
+    /// Gets or sets the extra tolerance applied to the resolved minimum attack interval,
+    /// as a fraction of that interval (0.15 = +15% ping buffer).
+    /// </summary>
+    [DefaultValue(0.15)]
+    public double PingBufferPercent { get; set; } = 0.15;
+
+    /// <summary>
+    /// Gets or sets the number of soft attack violations inside the rolling window that trigger a disconnect.
+    /// </summary>
+    [DefaultValue(10)]
+    public int AttackViolationKickThreshold { get; set; } = 10;
+
+    /// <summary>
+    /// Gets or sets the rolling window in seconds used with <see cref="AttackViolationKickThreshold"/>.
+    /// </summary>
+    [DefaultValue(5)]
+    public int AttackViolationKickWindowSeconds { get; set; } = 5;
 }

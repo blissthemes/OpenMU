@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using MUnique.OpenMU.DataModel.Configuration;
 using MUnique.OpenMU.DataModel.Configuration.Items;
 using MUnique.OpenMU.GameLogic.PlugIns;
+using MUnique.OpenMU.GameLogic.PlugIns.Security;
 using MUnique.OpenMU.GameLogic.Views.Inventory;
 using MUnique.OpenMU.GameLogic.Views.Trade;
 using static MUnique.OpenMU.DataModel.InventoryConstants;
@@ -40,6 +41,11 @@ public class MoveItemAction
     /// <param name="toSlot">To slot.</param>
     /// <param name="toStorage">To storage.</param>
     public async ValueTask MoveItemAsync(Player player, byte fromSlot, Storages fromStorage, byte toSlot, Storages toStorage)
+    {
+        await AccountTransactionLock.RunAsync(player.Account, () => this.MoveItemCoreAsync(player, fromSlot, fromStorage, toSlot, toStorage)).ConfigureAwait(false);
+    }
+
+    private async ValueTask MoveItemCoreAsync(Player player, byte fromSlot, Storages fromStorage, byte toSlot, Storages toStorage)
     {
         if (!this.IsMoveAllowed(player, fromStorage, toStorage))
         {

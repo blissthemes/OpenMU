@@ -42,6 +42,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <InternalsVisibleTo Include="MUnique.OpenMU.Tests" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Compile Update="Properties\PlayerMessage.Designer.cs">
       <DesignTime>True</DesignTime>
       <AutoGen>True</AutoGen>

@@ -13,6 +13,7 @@ using MUnique.OpenMU.Network;
 using MUnique.OpenMU.Network.Packets;
 using MUnique.OpenMU.Network.Packets.ClientToServer;
 using MUnique.OpenMU.Network.PlugIns;
+using MUnique.OpenMU.Network.Security;
 using MUnique.OpenMU.Network.Xor;
 using MUnique.OpenMU.PlugIns;
 
@@ -25,7 +26,7 @@ using MUnique.OpenMU.PlugIns;
 [BelongsToGroup(LogInOutGroup.GroupKey)]
 public class LogInHandlerPlugIn : ISubPacketHandlerPlugIn
 {
-    private readonly ISpanDecryptor _decryptor = new Xor3Decryptor(0);
+    private readonly ISpanDecryptor _decryptor = new Xor3Decryptor(0, PromuNetworkKeys.Xor3Keys);
 
     private readonly LoginAction _loginAction = new();
 

@@ -5,8 +5,10 @@
 namespace MUnique.OpenMU.GameLogic.PlayerActions.Items;
 
 using MUnique.OpenMU.GameLogic.PlugIns;
+using MUnique.OpenMU.GameLogic.PlugIns.Security;
 using MUnique.OpenMU.GameLogic.Views.Inventory;
 using MUnique.OpenMU.Pathfinding;
+using MUnique.OpenMU.Persistence;
 using static MUnique.OpenMU.GameLogic.PlugIns.IItemDropPlugIn;
 
 /// <summary>
@@ -22,6 +24,7 @@ public class DropItemAction
     /// <param name="target">The target coordinates.</param>
     public async ValueTask DropItemAsync(Player player, byte slot, Point target)
     {
+        await using var transaction = await AcquireAccountLockAsync(player).ConfigureAwait(false);
         var item = player.Inventory?.GetItem(slot);
 
         if (item is null
@@ -117,5 +120,22 @@ public class DropItemAction
     {
         await player.Inventory!.RemoveItemAsync(item).ConfigureAwait(false);
         await player.InvokeViewPlugInAsync<IItemDropResultPlugIn>(p => p.ItemDropResultAsync(item.ItemSlot, true)).ConfigureAwait(false);
+    }
+
+    private static async ValueTask<IAsyncDisposable> AcquireAccountLockAsync(Player player)
+    {
+        if (player.Account is { } account)
+        {
+            return await AccountTransactionLock.AcquireAsync(account.GetId()).ConfigureAwait(false);
+        }
+
+        return NoopAsyncDisposable.Instance;
+    }
+
+    private sealed class NoopAsyncDisposable : IAsyncDisposable
+    {
+        public static readonly NoopAsyncDisposable Instance = new();
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

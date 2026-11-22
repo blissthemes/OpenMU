@@ -24,6 +24,7 @@ public static class AdminAuthServiceCollectionExtensions
         services.TryAddSingleton<IAdminUserRepository, AdminUserRepository>();
         services.TryAddSingleton<IApiKeyRepository, ApiKeyRepository>();
         services.AddSingleton<IAdminAuditRepository, AdminAuditRepository>();
+        services.AddSingleton<ISecurityViolationRepository, SecurityViolationRepository>();
         return services;
     }
 }

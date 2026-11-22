@@ -7,6 +7,7 @@ namespace MUnique.OpenMU.ConnectServer.PacketHandler;
 using System.Net.Sockets;
 
 using Microsoft.Extensions.Logging;
+using MUnique.OpenMU.ConnectServer.Security;
 using MUnique.OpenMU.Interfaces;
 using IConnectServer = MUnique.OpenMU.ConnectServer.IConnectServer;
 
@@ -48,6 +49,11 @@ internal class ClientPacketHandler : IPacketHandler<Client>
             }
 
             var packetType = packet.Span[2];
+            if (await ConnectChallengeHandler.TryHandleResponseAsync(client.Connection, packet, this._logger).ConfigureAwait(false))
+            {
+                return;
+            }
+
             if (this._packetHandlers.TryGetValue(packetType, out var packetHandler))
             {
                 await packetHandler.HandlePacketAsync(client, packet).ConfigureAwait(false);

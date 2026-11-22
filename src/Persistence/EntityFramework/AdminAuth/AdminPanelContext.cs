@@ -33,6 +33,9 @@ public class AdminPanelContext : DbContext
     /// <summary>Gets or sets the administrative audit trail.</summary>
     public DbSet<AdminAuditEntry> AdminAuditEntries { get; set; } = null!;
 
+    /// <summary>Gets or sets the security / anti-cheat violation log.</summary>
+    public DbSet<SecurityViolation> SecurityViolations { get; set; } = null!;
+
     /// <inheritdoc />
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
@@ -87,6 +90,22 @@ public class AdminPanelContext : DbContext
             entity.Property(e => e.ResultJson).IsRequired().HasMaxLength(16384);
             entity.Property(e => e.Outcome).IsRequired().HasMaxLength(32);
             entity.HasIndex(e => new { e.StartedAt, e.Id });
+        });
+
+        modelBuilder.Entity<SecurityViolation>(entity =>
+        {
+            entity.ToTable("security_violations", SchemaNames.AdminPanel);
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.AccountLogin).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.CharacterName).IsRequired().HasMaxLength(20);
+            entity.Property(e => e.IpAddress).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.HwidHash).IsRequired().HasMaxLength(128);
+            entity.Property(e => e.Category).IsRequired().HasMaxLength(64);
+            entity.Property(e => e.Severity).IsRequired().HasMaxLength(32);
+            entity.Property(e => e.Detail).IsRequired().HasMaxLength(1024);
+            entity.Property(e => e.Sanction).IsRequired().HasMaxLength(32);
+            entity.HasIndex(e => new { e.CreatedAtUtc, e.Id });
+            entity.HasIndex(e => e.AccountLogin);
         });
     }
 }

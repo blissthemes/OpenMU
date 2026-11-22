@@ -8,6 +8,7 @@ using System.ComponentModel.DataAnnotations;
 using System.IO.Pipelines;
 using System.Runtime.InteropServices;
 using MUnique.OpenMU.Network;
+using MUnique.OpenMU.Network.Security;
 using MUnique.OpenMU.Network.SimpleModulus;
 using MUnique.OpenMU.Network.Xor;
 using MUnique.OpenMU.PlugIns;
@@ -26,22 +27,26 @@ public class OpenSourceClientNetworkEncryptionFactoryPlugIn : INetworkEncryption
     /// <inheritdoc />
     public IPipelinedEncryptor CreateEncryptor(PipeWriter target, DataDirection direction)
     {
+        PromuNetworkKeys.EnsureInitialized();
         if (direction == DataDirection.ServerToClient)
         {
-            return new PipelinedEncryptor(target);
+            return new PipelinedEncryptor(target, PromuNetworkKeys.ServerEncryptKey);
         }
 
-        return new PipelinedXor32Encryptor(new PipelinedSimpleModulusEncryptor(target, PipelinedSimpleModulusEncryptor.DefaultClientKey).Writer);
+        return new PipelinedXor32Encryptor(
+            new PipelinedSimpleModulusEncryptor(target, PromuNetworkKeys.ClientEncryptKey).Writer,
+            PromuNetworkKeys.Xor32Key);
     }
 
     /// <inheritdoc />
     public IPipelinedDecryptor CreateDecryptor(PipeReader source, DataDirection direction)
     {
+        PromuNetworkKeys.EnsureInitialized();
         if (direction == DataDirection.ClientToServer)
         {
-            return new PipelinedDecryptor(source);
+            return new PipelinedDecryptor(source, PromuNetworkKeys.ServerDecryptKey, PromuNetworkKeys.Xor32Key);
         }
 
-        return new PipelinedSimpleModulusDecryptor(source, PipelinedSimpleModulusDecryptor.DefaultClientKey);
+        return new PipelinedSimpleModulusDecryptor(source, PromuNetworkKeys.ClientDecryptKey);
     }
 }

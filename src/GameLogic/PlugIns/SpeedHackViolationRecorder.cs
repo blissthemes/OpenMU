@@ -8,6 +8,7 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using MUnique.OpenMU.DataModel.Configuration;
+using MUnique.OpenMU.GameLogic.PlugIns.Security;
 
 /// <summary>
 /// Records speed hack warnings and applies the configured sanction.
@@ -85,12 +86,28 @@ internal sealed class SpeedHackViolationRecorder
 
             player.Logger.LogWarning("Speedhack warning issued for player {0}. Total warnings in last hour: {1}", player.Name, state.AlertTimes.Count);
             sanction = ViolationPolicy.DecideSanction(config, state.AlertTimes.Count, CanPunish(player), player.Account is not null);
+            if (severity is SpeedHackViolationSeverity.Reject && config.DisconnectOnViolation && CanPunish(player))
+            {
+                sanction = sanction with { DisconnectPlayer = true };
+            }
+
             if (sanction.BanAccount && player.Account is { } account)
             {
                 player.Logger.LogError("Player {0} exceeded speedhack warning limit. Banning account {1} and disconnecting.", player.Name, account.LoginName);
                 account.State = AccountState.Banned;
             }
         }
+
+        var appliedSanction = sanction.BanAccount ? "Ban" : sanction.DisconnectPlayer ? "Disconnect" : sanction.WarnPlayer ? "Warn" : "None";
+        SecurityViolationBus.TryPublish(new SecurityViolationEvent(
+            player.Account?.LoginName ?? string.Empty,
+            player.SelectedCharacter?.Name ?? player.Name,
+            string.Empty,
+            string.Empty,
+            "SpeedHack",
+            severity.ToString(),
+            $"warnings={this.GetWarningCount(state)}",
+            appliedSanction));
 
         if (sanction.BanAccount)
         {

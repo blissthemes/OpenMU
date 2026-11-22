@@ -18,6 +18,16 @@ public class Xor3Decryptor : Xor3Encryptor, ISpanDecryptor
     {
     }
 
+    /// <summary>
+    /// Initializes a new instance of the <see cref="Xor3Decryptor"/> class.
+    /// </summary>
+    /// <param name="startOffset">The start offset.</param>
+    /// <param name="xor3Keys">The 3-byte XOR key.</param>
+    public Xor3Decryptor(int startOffset, byte[] xor3Keys)
+        : base(startOffset, xor3Keys)
+    {
+    }
+
     /// <inheritdoc/>
     public void Decrypt(Span<byte> packet)
     {

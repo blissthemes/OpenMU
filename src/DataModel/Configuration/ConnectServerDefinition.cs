@@ -123,7 +123,8 @@ public partial class ConnectServerDefinition : IConnectServerSettings
         this.Timeout = new TimeSpan(0, 1, 0);
         this.CurrentPatchVersion = new byte[] { 1, 3, 0x2B };
         this.PatchAddress = "patch.muonline.webzen.com";
-        this.MaxConnectionsPerAddress = 30;
+        // ProMU: keep CS IP as a coarse DoS backstop (HWID window limits are enforced on GameServer).
+        this.MaxConnectionsPerAddress = 6;
         this.CheckMaxConnectionsPerAddress = true;
         this.MaxConnections = 10000;
         this.ListenerBacklog = 100;

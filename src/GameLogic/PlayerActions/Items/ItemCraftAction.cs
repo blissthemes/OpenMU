@@ -6,6 +6,7 @@ namespace MUnique.OpenMU.GameLogic.PlayerActions.Items;
 
 using System.Collections.Concurrent;
 using MUnique.OpenMU.DataModel.Configuration.ItemCrafting;
+using MUnique.OpenMU.GameLogic.PlugIns.Security;
 using MUnique.OpenMU.GameLogic.Views.NPC;
 
 /// <summary>
@@ -22,6 +23,11 @@ public class ItemCraftAction
     /// <param name="mixTypeId">The mix type identifier.</param>
     /// <param name="socketSlot">The socket slot.</param>
     public async ValueTask MixItemsAsync(Player player, byte mixTypeId, byte socketSlot)
+    {
+        await AccountTransactionLock.RunAsync(player.Account, () => this.MixItemsCoreAsync(player, mixTypeId, socketSlot)).ConfigureAwait(false);
+    }
+
+    private async ValueTask MixItemsCoreAsync(Player player, byte mixTypeId, byte socketSlot)
     {
         var npcStats = player.OpenedNpc?.Definition;
 

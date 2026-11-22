@@ -5,6 +5,7 @@
 namespace MUnique.OpenMU.GameLogic.PlayerActions.Trade;
 
 using MUnique.OpenMU.GameLogic.PlugIns;
+using MUnique.OpenMU.GameLogic.PlugIns.Security;
 using MUnique.OpenMU.GameLogic.Views.Trade;
 using MUnique.OpenMU.Persistence;
 
@@ -34,7 +35,22 @@ public class TradeButtonAction : BaseTradeAction
             && tradingPartner is not null
             && tradingPartner.PlayerState.CurrentState == PlayerState.TradeButtonPressed)
         {
-            TradeResult result = await this.InternalFinishTradeAsync(trader, tradingPartner).ConfigureAwait(false);
+            TradeResult result;
+            var firstId = (trader as Player)?.Account?.GetId() ?? Guid.Empty;
+            var secondId = (tradingPartner as Player)?.Account?.GetId() ?? Guid.Empty;
+            if (firstId != Guid.Empty && secondId != Guid.Empty)
+            {
+                // Stable lock order avoids deadlocks between two traders.
+                var a = firstId.CompareTo(secondId) <= 0 ? firstId : secondId;
+                var b = firstId.CompareTo(secondId) <= 0 ? secondId : firstId;
+                await using var lockA = await AccountTransactionLock.AcquireAsync(a).ConfigureAwait(false);
+                await using var lockB = await AccountTransactionLock.AcquireAsync(b).ConfigureAwait(false);
+                result = await this.InternalFinishTradeAsync(trader, tradingPartner).ConfigureAwait(false);
+            }
+            else
+            {
+                result = await this.InternalFinishTradeAsync(trader, tradingPartner).ConfigureAwait(false);
+            }
             if (result != TradeResult.Success)
             {
                 await this.CancelTradeAsync(tradingPartner, false).ConfigureAwait(false);

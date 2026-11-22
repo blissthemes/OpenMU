@@ -8,9 +8,11 @@ using System.Runtime.CompilerServices;
 using MUnique.OpenMU.DataModel.Configuration.Items;
 using MUnique.OpenMU.DataModel.Configuration.Quests;
 using MUnique.OpenMU.GameLogic.Offline;
+using MUnique.OpenMU.GameLogic.PlugIns.Security;
 using MUnique.OpenMU.GameLogic.Views;
 using MUnique.OpenMU.GameLogic.Views.Inventory;
 using MUnique.OpenMU.Interfaces;
+using MUnique.OpenMU.Persistence;
 
 /// <summary>
 /// Action to pick up an item from the floor.
@@ -33,6 +35,7 @@ public class PickupItemAction
     /// <param name="dropId">The drop identifier.</param>
     public async ValueTask PickupItemAsync(Player player, ushort dropId)
     {
+        await using var transaction = await AcquireAccountLockAsync(player).ConfigureAwait(false);
         var droppedLocateable = player.CurrentMap?.GetDrop(dropId);
 
         switch (droppedLocateable)
@@ -253,5 +256,22 @@ public class PickupItemAction
     private static async ValueTask<bool> TryPickupMoneyAsync(Player player, DroppedMoney droppedMoney)
     {
         return CanPickup(player, droppedMoney) && await droppedMoney.TryPickUpByAsync(player).ConfigureAwait(false);
+    }
+
+    private static async ValueTask<IAsyncDisposable> AcquireAccountLockAsync(Player player)
+    {
+        if (player.Account is { } account)
+        {
+            return await AccountTransactionLock.AcquireAsync(account.GetId()).ConfigureAwait(false);
+        }
+
+        return NoopAsyncDisposable.Instance;
+    }
+
+    private sealed class NoopAsyncDisposable : IAsyncDisposable
+    {
+        public static readonly NoopAsyncDisposable Instance = new();
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 }

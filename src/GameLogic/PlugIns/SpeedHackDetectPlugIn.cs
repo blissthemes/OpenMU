@@ -53,7 +53,39 @@ public class SpeedHackDetectPlugIn : IFeaturePlugIn, ISupportCustomConfiguration
     public SpeedHackDetectConfiguration? Configuration { get; set; }
 
     /// <inheritdoc/>
-    public object CreateDefaultConfig() => new SpeedHackDetectConfiguration();
+    public object CreateDefaultConfig()
+    {
+        var config = new SpeedHackDetectConfiguration();
+        var env = Environment.GetEnvironmentVariable("PROMU_CRYPTO_ENV")?.Trim().ToLowerInvariant();
+        if (env is "test" or "prod" or "production")
+        {
+            config.DisconnectOnViolation = true;
+            config.EnforceWalkSpeed = true;
+            config.ObserveOnly = false;
+            // Slightly wider attack interval buffer for jitter (Clumsy / high ping) without a second detector.
+            config.PingBufferPercent = 0.20;
+        }
+        else
+        {
+            // Local lab: observe and log without kicking by default.
+            // Set PROMU_AC_ENFORCE=1 to enable disconnect / walk reject for red-team tests.
+            var enforce = Environment.GetEnvironmentVariable("PROMU_AC_ENFORCE");
+            if (string.Equals(enforce, "1", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(enforce, "true", StringComparison.OrdinalIgnoreCase))
+            {
+                config.DisconnectOnViolation = true;
+                config.EnforceWalkSpeed = true;
+                config.ObserveOnly = false;
+                config.PingBufferPercent = 0.20;
+            }
+            else
+            {
+                config.ObserveOnly = true;
+            }
+        }
+
+        return config;
+    }
 
     /// <inheritdoc/>
     public async ValueTask ValidateWalkRequestAsync(Player player, Memory<WalkingStep> steps, WalkRequestValidationArgs eventArgs)

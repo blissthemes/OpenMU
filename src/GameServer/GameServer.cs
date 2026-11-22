@@ -608,6 +608,8 @@ public sealed partial class GameServer : IGameServer, IDisposable, IAsyncDisposa
 
     private async ValueTask OnPlayerDisconnectedAsync(Player remotePlayer)
     {
+        GameLogic.PlugIns.Security.ConnectionGuardPlugIn.Unregister(remotePlayer.Id);
+
         if (!remotePlayer.IsTemplatePlayer)
         {
             await this.SetOfflineAtLoginServerAsync(remotePlayer).ConfigureAwait(false);

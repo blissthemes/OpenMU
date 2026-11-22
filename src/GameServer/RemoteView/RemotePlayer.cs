@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using MUnique.OpenMU.GameLogic;
 using MUnique.OpenMU.GameLogic.Views;
 using MUnique.OpenMU.GameServer.MessageHandler;
+using MUnique.OpenMU.GameServer.Security;
 using MUnique.OpenMU.Network;
 using MUnique.OpenMU.Network.PlugIns;
 using MUnique.OpenMU.PlugIns;
@@ -21,6 +22,10 @@ public class RemotePlayer : Player, IClientVersionProvider, IHasIpAddress
     private readonly byte[] _packetBuffer = new byte[0xFF];
 
     private readonly string? _ipAddress;
+
+    private readonly PacketRateLimiter _packetRateLimiter = PacketRateLimiter.FromEnvironment();
+
+    private readonly System.Threading.Timer _secureSessionTimer;
 
     private ClientVersion _clientVersion;
 
@@ -42,6 +47,11 @@ public class RemotePlayer : Player, IClientVersionProvider, IHasIpAddress
         this.MainPacketHandler.Initialize();
         this.Connection!.PacketReceived += this.PacketReceivedAsync;
         this.Connection!.Disconnected += this.DisconnectAsync;
+        this._secureSessionTimer = new System.Threading.Timer(
+            this.OnSecureSessionTimer,
+            null,
+            SecureSessionOptions.HeartbeatInterval,
+            SecureSessionOptions.HeartbeatInterval);
     }
 
     /// <inheritdoc />
@@ -153,6 +163,15 @@ public class RemotePlayer : Player, IClientVersionProvider, IHasIpAddress
 
         try
         {
+            await this._secureSessionTimer.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            this.Logger.LogDebug(ex, "Error disposing secure session timer for {Player}", this);
+        }
+
+        try
+        {
             await base.DisposeAsyncCore().ConfigureAwait(false);
         }
         finally
@@ -193,6 +212,13 @@ public class RemotePlayer : Player, IClientVersionProvider, IHasIpAddress
 
             try
             {
+                if (!this._packetRateLimiter.TryAcquire())
+                {
+                    this.Logger.LogWarning("Packet rate limit exceeded for {Player}; disconnecting", this);
+                    await this.DisconnectAsync().ConfigureAwait(false);
+                    return;
+                }
+
                 if (this.Logger.IsEnabled(LogLevel.Debug))
                 {
                     this.Logger.LogDebug("[C->S] {0}", buffer.ToArray().AsString());
@@ -231,5 +257,23 @@ public class RemotePlayer : Player, IClientVersionProvider, IHasIpAddress
         }
 
         return string.Empty;
+    }
+
+    private void OnSecureSessionTimer(object? state)
+    {
+        _ = this.RunSecureSessionTickAsync();
+    }
+
+    private async Task RunSecureSessionTickAsync()
+    {
+        try
+        {
+            await SecureSessionService.EnforceTimeoutsAsync(this, this.Logger).ConfigureAwait(false);
+            await SecureSessionService.SendHeartbeatRequestAsync(this).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            this.Logger.LogDebug(ex, "Secure session tick failed for {Player}", this);
+        }
     }
 }

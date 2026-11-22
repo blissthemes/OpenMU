@@ -5,8 +5,10 @@
 namespace MUnique.OpenMU.GameServer.RemoteView.Login;
 
 using System.Runtime.InteropServices;
+using Microsoft.Extensions.Logging;
 using MUnique.OpenMU.GameLogic.Views;
 using MUnique.OpenMU.GameLogic.Views.Login;
+using MUnique.OpenMU.GameServer.Security;
 using MUnique.OpenMU.Network;
 using MUnique.OpenMU.Network.Packets.ServerToClient;
 using MUnique.OpenMU.PlugIns;
@@ -54,5 +56,6 @@ public class ShowLoginWindowPlugIn : IShowLoginWindowPlugIn
         }
 
         await connection.SendAsync(Write).ConfigureAwait(false);
+        await SecureSessionService.SendChallengeAsync(this._player, this._player.Logger).ConfigureAwait(false);
     }
 }
