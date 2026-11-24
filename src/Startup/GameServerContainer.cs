@@ -162,6 +162,12 @@ public sealed class GameServerContainer : ServerContainerBase, IGameServerInstan
     {
         foreach (var gameServer in this._gameServers.Values)
         {
+            if (!PromuMinimalAutostart.ShouldStartGameServer(gameServer))
+            {
+                this._logger.LogInformation("Skipping listener start for Game Server {ServerId} ({Description})", gameServer.Id, gameServer.Description);
+                continue;
+            }
+
             await gameServer.StartAsync(cancellationToken).ConfigureAwait(false);
         }
     }

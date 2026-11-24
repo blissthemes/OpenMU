@@ -184,6 +184,14 @@ internal sealed class Program : IDisposable
 
         if (autoStart)
         {
+            if (PromuMinimalAutostart.IsEnabled)
+            {
+                this._logger.Information(
+                    "PROMU_MINIMAL_AUTOSTART: starting only Game Server {0} (X10), Connect {1}, and Chat",
+                    PromuMinimalAutostart.LiveGameServerId,
+                    PromuMinimalAutostart.OpenSourceConnectPort);
+            }
+
             foreach (var chatServer in this._servers.OfType<ChatServer>())
             {
                 await chatServer.StartAsync().ConfigureAwait(false);
@@ -191,11 +199,23 @@ internal sealed class Program : IDisposable
 
             foreach (var gameServer in this._gameServers.Values)
             {
+                if (!PromuMinimalAutostart.ShouldStartGameServer(gameServer))
+                {
+                    this._logger.Information("Skipping autostart for Game Server {0} ({1})", gameServer.Id, gameServer.Description);
+                    continue;
+                }
+
                 await gameServer.StartAsync().ConfigureAwait(false);
             }
 
             foreach (var connectServer in this._servers.OfType<IConnectServer>())
             {
+                if (!PromuMinimalAutostart.ShouldStartConnectServer(connectServer))
+                {
+                    this._logger.Information("Skipping autostart for Connect Server {0} ({1})", connectServer.Id, connectServer.Description);
+                    continue;
+                }
+
                 await connectServer.StartAsync().ConfigureAwait(false);
             }
         }

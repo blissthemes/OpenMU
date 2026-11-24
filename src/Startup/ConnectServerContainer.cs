@@ -100,6 +100,11 @@ public class ConnectServerContainer : ServerContainerBase, IEnumerable<IConnectS
     {
         foreach (var server in this._connectServers)
         {
+            if (!PromuMinimalAutostart.ShouldStartConnectServer(server))
+            {
+                continue;
+            }
+
             await server.StartAsync(cancellationToken).ConfigureAwait(false);
         }
     }
