@@ -166,6 +166,17 @@ internal partial class NpcInitialization : Version095d.NpcInitialization
             elfSoldier.Buffs.Add(buff);
         }
 
+        // ProMU QoL: Luke the Helper - separate quest NPC next to the Shadow Phantom Soldier (257), which only buffs.
+        {
+            var def = this.Context.CreateNew<MonsterDefinition>();
+            def.Number = 258;
+            def.Designation = "Luke the Helper";
+            def.NpcWindow = NpcWindow.NpcDialog;
+            def.ObjectKind = NpcObjectKind.PassiveNpc;
+            this.GameConfiguration.Monsters.Add(def);
+            def.SetGuid(def.Number);
+        }
+
         {
             var def = this.Context.CreateNew<MonsterDefinition>();
             def.Number = 259;

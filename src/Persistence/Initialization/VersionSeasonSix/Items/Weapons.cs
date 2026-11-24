@@ -456,7 +456,8 @@ internal class Weapons : InitializerBase
 
         if (group == (int)ItemGroups.Bows)
         {
-            item.BasePowerUpAttributes.Add(this.CreateItemBasePowerUpDefinition(Stats.AmmunitionConsumptionRate, 1, AggregateType.AddRaw));
+            // ProMU QoL: Bolts/Arrows are not consumed.
+            item.BasePowerUpAttributes.Add(this.CreateItemBasePowerUpDefinition(Stats.AmmunitionConsumptionRate, 0, AggregateType.AddRaw));
             item.BasePowerUpAttributes.Add(this.CreateItemBasePowerUpDefinition(slot == 0 ? Stats.IsCrossBowEquipped : Stats.IsBowEquipped, 1, AggregateType.AddRaw));
 
             // Divine Crossbow of Archangel, Great Reign Crossbow, Albatross Bow, Stinger Bow, Air Lyn Bow

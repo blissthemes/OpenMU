@@ -232,6 +232,11 @@ internal class Elvenland : BaseMapInitializer
         yield return this.CreateMonsterSpawn(13, this.NpcDictionary[492], 22, 225, Direction.South); // Moss
         yield return this.CreateMonsterSpawn(14, this.NpcDictionary[579], 20, 214, Direction.SouthEast); // David
         yield return this.CreateMonsterSpawn(15, this.NpcDictionary[568], 55, 199, Direction.South, SpawnTrigger.Wandering); // Wandering Merchant Zyro
+
+        // ProMU QoL: Luke the Helper (quest NPC) next to each Shadow Phantom Soldier (auto-buff NPC)
+        yield return this.CreateMonsterSpawn(50, this.NpcDictionary[258], 45, 191, Direction.SouthEast);
+        yield return this.CreateMonsterSpawn(51, this.NpcDictionary[258], 59, 232, Direction.SouthEast);
+        yield return this.CreateMonsterSpawn(52, this.NpcDictionary[258], 76, 76, 219, 220, 1, Direction.SouthWest);
     }
 
     /// <inheritdoc/>

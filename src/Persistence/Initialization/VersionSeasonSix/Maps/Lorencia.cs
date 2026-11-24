@@ -57,5 +57,11 @@ internal class Lorencia : Version095d.Maps.Lorencia
         yield return this.CreateMonsterSpawn(25, this.NpcDictionary[371], 130, 126, Direction.SouthEast);
         yield return this.CreateMonsterSpawn(26, this.NpcDictionary[568], 131, 139, Direction.South, SpawnTrigger.Wandering); // Wandering Merchant Zyro
         yield return this.CreateMonsterSpawn(27, this.NpcDictionary[547], 139, 138, Direction.SouthEast); // Market Union Member Julia (warps to the Loren Market)
+
+        // ProMU QoL: Luke the Helper (quest NPC) next to each Shadow Phantom Soldier (auto-buff NPC)
+        yield return this.CreateMonsterSpawn(50, this.NpcDictionary[258], 98, 129, Direction.SouthWest);
+        yield return this.CreateMonsterSpawn(51, this.NpcDictionary[258], 172, 129, Direction.SouthWest);
+        yield return this.CreateMonsterSpawn(52, this.NpcDictionary[258], 134, 90, Direction.SouthEast);
+        yield return this.CreateMonsterSpawn(53, this.NpcDictionary[258], 134, 165, Direction.SouthEast);
     }
 }

@@ -25,13 +25,12 @@ internal class Noria : Version095d.Maps.Noria
     /// Gets the automatic monster spawns of Noria.
     /// </summary>
     /// <remarks>
-    /// The layout of <see cref="Version075.Maps.Noria.MonsterSpawnLayout"/> plus the spiders, which Season 6
-    /// added for its first hunting quest.
+    /// The layout of <see cref="Version075.Maps.Noria.MonsterSpawnLayout"/>.
+    /// ProMU QoL: The spiders (spawn 200), which Season 6 added for its first hunting quest, are removed.
     /// It's shared with <see cref="Updates.FieldMonsterSpawnsUpdatePlugInSeason6"/>, which brings this layout to existing databases.
     /// </remarks>
     internal static new IReadOnlyList<FieldMonsterSpawn> MonsterSpawnLayout { get; } =
     [
-        new(200, 3, 139, 247, 63, 164, 60), // Spider
         .. Version075.Maps.Noria.MonsterSpawnLayout,
     ];
 
@@ -57,6 +56,11 @@ internal class Noria : Version095d.Maps.Noria
         yield return this.CreateMonsterSpawn(14, this.NpcDictionary[229], 169, 88, Direction.SouthEast, SpawnTrigger.Wandering); // Marlon
         yield return this.CreateMonsterSpawn(15, this.NpcDictionary[257], 166, 85, Direction.South);
         yield return this.CreateMonsterSpawn(16, this.NpcDictionary[257], 201, 129, Direction.South);
+
+        // ProMU QoL: Luke the Helper (quest NPC) next to each Shadow Phantom Soldier (auto-buff NPC)
+        yield return this.CreateMonsterSpawn(50, this.NpcDictionary[258], 169, 118, Direction.SouthWest);
+        yield return this.CreateMonsterSpawn(51, this.NpcDictionary[258], 168, 85, Direction.South);
+        yield return this.CreateMonsterSpawn(52, this.NpcDictionary[258], 203, 129, Direction.South);
     }
 
     /// <inheritdoc/>
