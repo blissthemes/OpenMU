@@ -229,6 +229,7 @@ public sealed class WebsiteOperations(
     /// <remarks>
     /// Unlike characters_get of the administration, it doesn't contain the account, the inventory, the money or the position,
     /// and it doesn't tell whether the player is online: that's only for the player, in the answer of the login.
+    /// It does include the saved base attributes (strength, agility, vitality, energy, leadership).
     /// The state is the saved one, so the items of an online character may have changed since its last save.
     /// Characters of bots, of templates and of game masters are not found, as they are not ranked either.
     /// Only the character is loaded, not the other characters and the vault of its account.
@@ -284,6 +285,11 @@ public sealed class WebsiteOperations(
             (int)GetAttribute(character, Stats.MasterLevel),
             (int)GetAttribute(character, Stats.Resets),
             guildName,
+            (int)GetAttribute(character, Stats.BaseStrength),
+            (int)GetAttribute(character, Stats.BaseAgility),
+            (int)GetAttribute(character, Stats.BaseVitality),
+            (int)GetAttribute(character, Stats.BaseEnergy),
+            (int)GetAttribute(character, Stats.BaseLeadership),
             equippedItems);
     }
 
@@ -339,7 +345,49 @@ public sealed class WebsiteOperations(
             return new WebsiteLoginResult(WebsiteLoginStatus.Failed, null);
         }
 
-        var characters = account!.Characters
+        var characters = MapCharacterSummaries(account!);
+        var isOnline = (await loginServer.GetSnapshotAsync().ConfigureAwait(false)).Keys.Contains(account!.LoginName, StringComparer.OrdinalIgnoreCase);
+
+        // A game server which doesn't answer must not prevent the login.
+        var isOfflineLeveling = await this.IsOfflineLevelingAsync(account.LoginName, cancellationToken).ConfigureAwait(false) ?? false;
+        return new WebsiteLoginResult(WebsiteLoginStatus.Succeeded, new WebsiteAccount(account.LoginName, state!.Value.ToString(), isOnline, isOfflineLeveling, characters));
+    }
+
+    /// <summary>
+    /// Lists characters of a game account by login name without verifying a password.
+    /// Intended for trusted website backends after portal session + ownership checks.
+    /// </summary>
+    /// <param name="loginName">The game account login name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns>The account roster, or <c>null</c> when the account does not exist.</returns>
+    [AdminOperation("WebManager")]
+    [NotExposedToAgents("Exposes player account rosters to website backends; agents must not enumerate player accounts.")]
+    public async ValueTask<WebsiteAccount?> GetAccountCharactersAsync(string loginName, CancellationToken cancellationToken)
+    {
+        // Reuse website_login allowlist so existing portal WebManager keys work after rebuild
+        // without a separate AdminPanel permission edit. Portal still enforces ownership.
+        await executor.RequireOperationAsync(AdminRoles.WebManager, WebsitePermissions.Login, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(loginName) || loginName.Length > AccountRegistration.LoginNameMaximumLength)
+        {
+            return null;
+        }
+
+        var gameConfiguration = await configurations.GetOwnerAsync(Guid.Empty, cancellationToken).ConfigureAwait(false);
+        using var context = persistence.CreateNewPlayerContext(gameConfiguration);
+        var account = await context.GetAccountByLoginNameAsync(loginName, cancellationToken).ConfigureAwait(false);
+        if (account is null || account.IsTemplate)
+        {
+            return null;
+        }
+
+        var characters = MapCharacterSummaries(account);
+        var isOnline = (await loginServer.GetSnapshotAsync().ConfigureAwait(false)).Keys.Contains(account.LoginName, StringComparer.OrdinalIgnoreCase);
+        var isOfflineLeveling = await this.IsOfflineLevelingAsync(account.LoginName, cancellationToken).ConfigureAwait(false) ?? false;
+        return new WebsiteAccount(account.LoginName, account.State.ToString(), isOnline, isOfflineLeveling, characters);
+    }
+
+    private static List<WebsiteCharacterSummary> MapCharacterSummaries(Account account)
+        => account.Characters
             .OrderBy(character => character.CharacterSlot)
             .Select(character => new WebsiteCharacterSummary(
                 character.Name,
@@ -353,12 +401,6 @@ public sealed class WebsiteOperations(
                 character.PositionX,
                 character.PositionY))
             .ToList();
-        var isOnline = (await loginServer.GetSnapshotAsync().ConfigureAwait(false)).Keys.Contains(account.LoginName, StringComparer.OrdinalIgnoreCase);
-
-        // A game server which doesn't answer must not prevent the login.
-        var isOfflineLeveling = await this.IsOfflineLevelingAsync(account.LoginName, cancellationToken).ConfigureAwait(false) ?? false;
-        return new WebsiteLoginResult(WebsiteLoginStatus.Succeeded, new WebsiteAccount(account.LoginName, state!.Value.ToString(), isOnline, isOfflineLeveling, characters));
-    }
 
     /// <summary>Changes the password of a game account, after checking its current password.</summary>
     /// <param name="loginName">The login name.</param>

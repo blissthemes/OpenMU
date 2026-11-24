@@ -132,6 +132,19 @@ public sealed class WebsiteController(WebsiteOperations operations, WebsiteLogin
     }
 
     /// <summary>
+    /// Lists characters of a game account by login name without a password (trusted website backends only).
+    /// </summary>
+    /// <param name="loginName">The game account login name.</param>
+    /// <param name="cancellationToken">The cancellation token.</param>
+    /// <returns><c>200</c> with the account roster, or <c>404</c> when the account does not exist.</returns>
+    [HttpGet("accounts/{loginName}/characters")]
+    public async Task<IActionResult> GetAccountCharactersAsync(string loginName, CancellationToken cancellationToken)
+    {
+        var account = await operations.GetAccountCharactersAsync(loginName, cancellationToken).ConfigureAwait(false);
+        return account is null ? this.NotFound() : this.Ok(account);
+    }
+
+    /// <summary>
     /// Changes the password of a game account, after checking its current password.
     /// </summary>
     /// <param name="loginName">The login name of the account.</param>
