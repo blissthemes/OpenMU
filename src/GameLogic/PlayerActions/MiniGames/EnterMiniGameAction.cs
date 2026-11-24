@@ -265,7 +265,19 @@ public class EnterMiniGameAction
 
         // The regular ticket is preferred, because the free ticket is usually bought.
         ticketItem = FreeTicketItems.Find(player, miniGameDefinition, gameTicketInventoryIndex);
-        return ticketItem is not null;
+        if (ticketItem is not null)
+        {
+            return true;
+        }
+
+        // ProMU VIP: +1 daily Blood Castle / Devil Square entry without a ticket.
+        if (PlugIns.Promu.PromuVipPrivileges.TryConsumeDailyBonusEntry(player, miniGameDefinition.Type))
+        {
+            ticketItem = null;
+            return true;
+        }
+
+        return false;
     }
 
     private bool IsValidTicket(Item? ticketItem, ItemDefinition requiredItemDefinition, MiniGameDefinition miniGameDefinition)

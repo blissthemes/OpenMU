@@ -21,6 +21,8 @@ using MUnique.OpenMU.Interfaces;
 /// </summary>
 public class TalkNpcAction
 {
+    private readonly NpcBuffRequestAction _buffRequestAction = new();
+
     /// <summary>
     /// Talks to the specified Monster.
     /// </summary>
@@ -149,6 +151,23 @@ public class TalkNpcAction
             case NpcWindow.ChaosMachine:
             case NpcWindow.RemoveJohOption:
                 await player.InvokeViewPlugInAsync<IOpenNpcWindowPlugIn>(p => p.OpenNpcWindowAsync(npcStats.NpcWindow)).ConfigureAwait(false);
+                break;
+            case NpcWindow.NpcDialog:
+                // ProMU QoL: buff-only NPCs (Shadow Phantom Soldier) apply the buff with no client dialog.
+                if (npcStats.Buffs.Any() && !npcStats.Quests.Any())
+                {
+                    await this._buffRequestAction.RequestBuffAsync(player).ConfigureAwait(false);
+                    player.OpenedNpc = null;
+                    await player.PlayerState.TryAdvanceToAsync(PlayerState.EnteredWorld).ConfigureAwait(false);
+                    break;
+                }
+
+                await player.InvokeViewPlugInAsync<IOpenNpcWindowPlugIn>(p => p.OpenNpcWindowAsync(npcStats.NpcWindow)).ConfigureAwait(false);
+                if (npcStats.Buffs.Any())
+                {
+                    await this._buffRequestAction.RequestBuffAsync(player).ConfigureAwait(false);
+                }
+
                 break;
             default:
                 await player.InvokeViewPlugInAsync<IOpenNpcWindowPlugIn>(p => p.OpenNpcWindowAsync(npcStats.NpcWindow)).ConfigureAwait(false);

@@ -532,6 +532,12 @@ public static class AttackableExtensions
     /// <param name="hitInfo">The hit information.</param>
     public static void ApplyAmmunitionConsumption(this IAttacker attacker, HitInfo hitInfo)
     {
+        if (attacker is Player)
+        {
+            // ProMU QoL — Bolt/Arrow not consumed.
+            return;
+        }
+
         if (!hitInfo.Attributes.HasFlag(DamageAttributes.Reflected) && attacker.Attributes[Stats.AmmunitionConsumptionRate] > 0.0)
         {
             // Every hit needs ammo, missed or not

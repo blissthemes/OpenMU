@@ -82,6 +82,12 @@ public sealed class ItemPickupHandler
             return;
         }
 
+        // ProMU VIP: offline item pickup is active only while IsVip is granted.
+        if (!PlugIns.Promu.PromuVipPrivileges.CanOfflinePickup(this._player))
+        {
+            return;
+        }
+
         if (!this._config.PickAllItems && !this._config.PickSelectItems)
         {
             return;
