@@ -1,10 +1,10 @@
 # OpenMU Upstream Strategy — Git Repository Audit
 
 **Date:** 2026-11-22  
-**Scope:** Git audit + **Phase 0 local thematic commits** of `C:\dev\mu-lab\OpenMU`  
-**Constraint (still):** no push / fork / remotes change / branch create-switch / merge / rebase / reset / clean / code edits beyond docs in this folder.
+**Scope:** Phase 0 commits → Phase 1 remotes/fork/`main` → **Phase 2 upstream sync audit** (read-only)  
+**Constraint (Phase 2):** `git fetch upstream` allowed; **no** merge / rebase / cherry-pick / code changes / push of sync.
 
-**Verdict:** Phase 0 **DONE** — ProMU overlay закреплён локальными commits поверх `45678e37f`. Upstream sync по-прежнему **нельзя** без Phase 1 (личный fork + remotes). `origin` всё ещё = MUnique.
+**Verdict:** Phase 0+1 **DONE**. Phase 2 audit: ProMU `main` @ `ec762d271` is **5 commits ahead / 6 behind** `upstream/master` (`b02b5a71c`). **No same-file overlap** with ProMU overlay; `git merge-tree` → no conflict markers. Sync looks **low-risk / high-value** (esp. Lord’s Mix). Merge still requires explicit Phase 3 go.
 
 ---
 
@@ -330,24 +330,96 @@ dotnet test C:\dev\mu-lab\OpenMU\tests\MUnique.OpenMU.Tests\MUnique.OpenMU.Tests
 
 ---
 
-## Конкретные рекомендации (после Phase 0)
+## Phase 1 — Remotes / main / fork backup (DONE)
 
-1. **Phase 1 next:** создать GitHub fork → `origin`; MUnique → `upstream`; optionally rename ProMU line to `main`.
-2. **Не** `git push` на текущий `origin` (MUnique) — нет write access / не наш remote.
-3. **Не** merge/rebase upstream, пока fork не настроен и `main` не запушен.
-4. Оставить `Map.js` / LuckyCoin dirty вне ProMU history, либо отдельно решить судьбу LuckyCoin tests.
-5. Sync только через `integration/upstream-sync` + тесты после Phase 1.
-6. Античит: не дублировать stock SpeedHack/CS IP (Stage AC policy).
-
-### Безопасность upstream sync **сейчас**
-
-| Действие | Безопасно? |
-|----------|------------|
-| Phase 0 commits (done) | Да |
-| `git remote add upstream` / retarget `origin` to fork | Phase 1 only (owner go) |
-| push to fork | Phase 1 |
-| merge / pull / rebase upstream | **Ещё нет** |
+| Item | Result |
+|------|--------|
+| `origin` | `https://github.com/blissthemes/OpenMU.git` |
+| `upstream` | `https://github.com/MUnique/OpenMU.git` |
+| `main` / `integration/upstream-sync` | created @ `ec762d271`; pushed to fork |
+| `master` | kept locally |
+| HTTPS push | works after Contents:Write on PAT (SSH used for first push) |
 
 ---
 
-**Phase 0 complete. Stopped. No fork / push / remotes / branch switches performed.**
+## Phase 2 — Upstream Sync Audit (2026-11-22, read-only)
+
+### Snapshot
+
+| Ref | SHA | Note |
+|-----|-----|------|
+| ProMU `main` / `integration/upstream-sync` / local `master` | `ec762d271` | Phase 0 tip |
+| Merge-base | `45678e37f` | pin when ProMU branched |
+| `upstream/master` (after `git fetch upstream`) | `b02b5a71c` | 2026-11-21 |
+| `main...upstream/master` | **5 ahead / 6 behind** | diverged histories |
+
+Dirty (unchanged by audit): `Map.js` (CRLF), `ServerToClientPacketTests.cs` (LuckyCoin +58).
+
+### 1. New upstream commits (`main..upstream/master`)
+
+| SHA | Date | Subject | Importance for ProMU |
+|-----|------|---------|----------------------|
+| `a81229db3` | 2026-11-21 | fix: run periodic tasks on every GS (#1588) | **High** — multi-GS correctness (save/weather/waiting items/cash playtime) |
+| `717abffa6` | 2026-11-21 | fix(bots): wait for reset before spawn (#1587) | **Medium** — loadtest / bots (Stage AC LOADTEST) |
+| `9b6946c97` | 2026-11-21 | fix(web): search input standardize (#1585) | **Low** — AdminPanel UX only |
+| `41d629c6f` | 2026-11-21 | feat(web): localized input toggle (#1581) | **Low** — AdminPanel; also adds LuckyCoin packet tests |
+| `0997676a0` | 2026-11-21 | Lord's Mix castle senior crafting (#1571) | **High** — closes AC audit gap “Lord’s Mix not in tree”; EF migration `AddLordsMix` |
+| `b02b5a71c` | 2026-11-21 | feat(web): shared pager (#1589) | **Low** — AdminPanel tables |
+
+**Volume:** ~106 files, +10632 / −324 vs `45678e37f`.
+
+### 2. ProMU-only commits (`upstream/master..main`)
+
+Unchanged set: `629cb723a` security · `3f20ab3da` rewards · docs (`7dfe735f0`…).
+
+### 3. Conflict analysis
+
+| Check | Result |
+|-------|--------|
+| Same-path intersection (ProMU tree vs upstream tree) | **Empty** — no shared modified paths |
+| `git merge-tree <base> main upstream/master` | **No** `CONFLICT` / `changed in both` markers |
+| Direct risk to Security/ / PromuNetworkKeys / InternalRewards | **None** in this window |
+| Near-miss (adjacent) | ProMU `ItemCraftAction` + `AccountTransactionLock` vs upstream `SimpleItemCraftingHandler` / `LordsMixCrafting` — **different files**; re-test craft/trade locks after merge |
+| Dirty `ServerToClientPacketTests.cs` | **Identical** to upstream LuckyCoin hunk from `#1581` — not ProMU IP; discard or keep; will match after sync |
+| Dirty `Map.js` | CRLF-only; ignore during sync |
+| Migrations | Upstream: **EntityDataContext** `AddLordsMix`; ProMU: **AdminPanel** `AddSecurityViolations` — separate contexts |
+
+### 4. Risk rating for a future merge into `integration/upstream-sync`
+
+| Area | Risk |
+|------|------|
+| Text conflict on ProMU overlay files | **Low** |
+| Semantic / runtime after Lord’s Mix + craft locks | **Medium** — smoke craft/trade |
+| EF / DB apply `AddLordsMix` (no `-reinit`) | **Medium** — use OpenMU update plugins / normal migrate path only |
+| AdminPanel UI churn | **Low** |
+| Multi-GS periodic tasks vs lab single Server 0 | **Low** lab; **High** value when multi-GS |
+
+**Overall:** sync is **recommended** and looks **mergeable with low conflict risk**.
+
+### 5. Integration plan (Phase 3 — **do not execute now**)
+
+1. Clean or stash dirty files (or leave Map.js; LuckyCoin already = upstream).
+2. `git switch integration/upstream-sync` (should equal `main` @ `ec762d271`).
+3. `git merge upstream/master` (**merge**, not rebase of published `main`).
+4. Resolve any unexpected conflicts preserving ProMU `Security/` / rewards.
+5. Build + `PromuAntiCheatSecurityTests` + Startup smoke (44406 / test1).
+6. Extra: Lord’s Mix / craft path; AdminPanel loads; no `-reinit`.
+7. Merge `integration/upstream-sync` → `main`; `git push origin main` + integration branch.
+8. Update lab pin in `SOURCE_VERSION_MATRIX` / `CURRENT_STATE` to `b02b5a71c` (+ ProMU tip).
+
+### 6. Phase 2 safety confirmation
+
+- Fetched `upstream` only; **no** merge / rebase / cherry-pick / push of sync.
+- Code/config runtime **not** changed by this audit (docs update in this README only).
+- ProMU commits / fork branches untouched.
+
+---
+
+## Recommendations (now)
+
+1. **Phase 3 (owner go):** merge `upstream/master` into `integration/upstream-sync`, test, then → `main`.
+2. Prioritize absorbing **#1571 Lord’s Mix** and **#1588 per-GS periodic tasks**.
+3. After sync, update Stage AC note: Lord’s Mix gap may be closed in source (still needs lab dry-run).
+4. Keep sync cadence: fetch upstream → audit delta → merge via integration branch.
+
+**PHASE 2 COMPLETE (audit only). Stopped before merge.**

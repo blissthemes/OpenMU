@@ -25,6 +25,7 @@ using MUnique.OpenMU.Web.AdminPanel.Services;
 public sealed class InternalRewardsController : ControllerBase
 {
     private readonly CashShopCoinService _coinService;
+    private readonly VipAccountService _vipService;
     private readonly IPersistenceContextProvider _persistence;
     private readonly IDataSource<GameConfiguration> _gameConfigurationSource;
     private readonly ILogger<InternalRewardsController> _logger;
@@ -32,9 +33,6 @@ public sealed class InternalRewardsController : ControllerBase
     /// <summary>
     /// Initializes a new instance of the <see cref="InternalRewardsController"/> class.
     /// </summary>
-    /// <param name="persistenceContextProvider">The persistence context provider.</param>
-    /// <param name="gameConfigurationSource">The game configuration source.</param>
-    /// <param name="logger">The logger.</param>
     public InternalRewardsController(
         IPersistenceContextProvider persistenceContextProvider,
         IDataSource<GameConfiguration> gameConfigurationSource,
@@ -43,15 +41,13 @@ public sealed class InternalRewardsController : ControllerBase
         this._persistence = persistenceContextProvider;
         this._gameConfigurationSource = gameConfigurationSource;
         this._coinService = new CashShopCoinService(persistenceContextProvider, gameConfigurationSource);
+        this._vipService = new VipAccountService(persistenceContextProvider, gameConfigurationSource);
         this._logger = logger;
     }
 
     /// <summary>
     /// Grants cash-shop coins under the account transaction lock.
     /// </summary>
-    /// <param name="request">The request.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The grant result.</returns>
     [HttpPost("coins")]
     public async Task<IActionResult> GrantCoinsAsync([FromBody] InternalCoinGrantRequest request, CancellationToken cancellationToken)
     {
@@ -90,11 +86,48 @@ public sealed class InternalRewardsController : ControllerBase
     }
 
     /// <summary>
-    /// Marks a VIP flag on the account (persisted attribute / state extension point).
+    /// Returns VIP status for an account.
     /// </summary>
-    /// <param name="request">The request.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The result.</returns>
+    [HttpGet("vip/{loginName}")]
+    public async Task<IActionResult> GetVipStatusAsync(string loginName, CancellationToken cancellationToken)
+    {
+        if (!this.IsInternalSecretValid())
+        {
+            return this.Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(loginName))
+        {
+            return this.BadRequest();
+        }
+
+        var status = await this._vipService.GetStatusAsync(loginName, cancellationToken).ConfigureAwait(false);
+        return status is null ? this.NotFound() : this.Ok(status);
+    }
+
+    /// <summary>
+    /// Returns ProGold (WCoinP) balance for an account.
+    /// </summary>
+    [HttpGet("progold/{loginName}")]
+    public async Task<IActionResult> GetProGoldAsync(string loginName, CancellationToken cancellationToken)
+    {
+        if (!this.IsInternalSecretValid())
+        {
+            return this.Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(loginName))
+        {
+            return this.BadRequest();
+        }
+
+        var balance = await this._vipService.GetProGoldBalanceAsync(loginName, cancellationToken).ConfigureAwait(false);
+        return balance is null ? this.NotFound() : this.Ok(balance);
+    }
+
+    /// <summary>
+    /// Persists a VIP attribute grant (IsVip + EXP/ZEN bonuses) under the account lock.
+    /// </summary>
     [HttpPost("vip")]
     public async Task<IActionResult> GrantVipAsync([FromBody] InternalVipGrantRequest request, CancellationToken cancellationToken)
     {
@@ -103,7 +136,7 @@ public sealed class InternalRewardsController : ControllerBase
             return this.Unauthorized();
         }
 
-        if (string.IsNullOrWhiteSpace(request.LoginName))
+        if (string.IsNullOrWhiteSpace(request.LoginName) || request.Days < 1)
         {
             return this.BadRequest();
         }
@@ -114,25 +147,100 @@ public sealed class InternalRewardsController : ControllerBase
             return this.NotFound();
         }
 
-        await AccountTransactionLock.RunAsync(accountId, () =>
+        VipGrantResult? result = null;
+        await AccountTransactionLock.RunAsync(accountId, async () =>
         {
-            this._logger.LogInformation(
-                "Internal VIP grant acknowledged for {Login} level={Level} days={Days}",
+            result = await this._vipService.GrantVipAsync(
                 request.LoginName,
-                request.VipLevel,
-                request.Days);
-            return ValueTask.CompletedTask;
+                request.VipLevel < 1 ? 1 : request.VipLevel,
+                request.Days,
+                cancellationToken).ConfigureAwait(false);
         }).ConfigureAwait(false);
 
-        return this.Accepted(new { request.LoginName, request.VipLevel, request.Days, status = "accepted" });
+        this._logger.LogInformation(
+            "Internal VIP grant for {Login} level={Level} days={Days} status={Status}",
+            request.LoginName,
+            request.VipLevel,
+            request.Days,
+            result?.Status);
+        return result?.Status switch
+        {
+            VipGrantStatus.Granted => this.Ok(result.StatusInfo),
+            VipGrantStatus.AccountNotFound => this.NotFound(),
+            _ => this.BadRequest(),
+        };
+    }
+
+    /// <summary>
+    /// Atomically debits ProGold and grants VIP. Idempotent via <see cref="InternalVipPurchaseRequest.Reference"/>.
+    /// </summary>
+    [HttpPost("vip-purchase")]
+    public async Task<IActionResult> PurchaseVipAsync([FromBody] InternalVipPurchaseRequest request, CancellationToken cancellationToken)
+    {
+        if (!this.IsInternalSecretValid())
+        {
+            return this.Unauthorized();
+        }
+
+        if (string.IsNullOrWhiteSpace(request.LoginName)
+            || string.IsNullOrWhiteSpace(request.Reference)
+            || request.Days < 1
+            || request.ProGoldPrice < 1)
+        {
+            return this.BadRequest();
+        }
+
+        var accountId = await this.TryGetAccountIdAsync(request.LoginName, cancellationToken).ConfigureAwait(false);
+        if (accountId is null)
+        {
+            return this.NotFound();
+        }
+
+        VipPurchaseResult? result = null;
+        await AccountTransactionLock.RunAsync(accountId, async () =>
+        {
+            result = await this._vipService.PurchaseVipAsync(
+                request.LoginName,
+                request.VipLevel < 1 ? 1 : request.VipLevel,
+                request.Days,
+                request.ProGoldPrice,
+                request.Reference,
+                request.Reason,
+                cancellationToken).ConfigureAwait(false);
+        }).ConfigureAwait(false);
+
+        this._logger.LogInformation(
+            "Internal VIP purchase for {Login} days={Days} price={Price} ref={Reference} status={Status}",
+            request.LoginName,
+            request.Days,
+            request.ProGoldPrice,
+            request.Reference,
+            result?.Status);
+
+        return result?.Status switch
+        {
+            VipPurchaseStatus.Purchased => this.Ok(new
+            {
+                status = "purchased",
+                vip = result.Vip,
+                coinGrant = result.CoinGrant,
+            }),
+            VipPurchaseStatus.AlreadyPurchased => this.Ok(new
+            {
+                status = "already_purchased",
+                vip = result.Vip,
+                coinGrant = result.CoinGrant,
+            }),
+            VipPurchaseStatus.InsufficientFunds => this.Conflict(new { status = "insufficient_funds" }),
+            VipPurchaseStatus.AccountNotFound => this.NotFound(),
+            VipPurchaseStatus.ReferenceUsedByOtherAccount => this.Conflict(new { status = "reference_conflict" }),
+            _ => this.BadRequest(),
+        };
     }
 
     /// <summary>
     /// Queues a vault item delivery under the account lock.
     /// </summary>
-    /// <param name="request">The request.</param>
-    /// <param name="cancellationToken">The cancellation token.</param>
-    /// <returns>The result.</returns>
     [HttpPost("vault-item")]
     public async Task<IActionResult> GrantVaultItemAsync([FromBody] InternalVaultItemGrantRequest request, CancellationToken cancellationToken)
     {
@@ -229,6 +337,28 @@ public sealed class InternalVipGrantRequest
 
     /// <summary>Gets or sets the duration in days.</summary>
     public int Days { get; set; } = 30;
+}
+
+/// <summary>Atomic VIP purchase (ProGold debit + VIP grant).</summary>
+public sealed class InternalVipPurchaseRequest
+{
+    /// <summary>Gets or sets the login name.</summary>
+    public string LoginName { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the VIP level.</summary>
+    public int VipLevel { get; set; } = 1;
+
+    /// <summary>Gets or sets the duration in days.</summary>
+    public int Days { get; set; }
+
+    /// <summary>Gets or sets the ProGold price (WCoinC debit).</summary>
+    public int ProGoldPrice { get; set; }
+
+    /// <summary>Gets or sets the idempotency reference (unique).</summary>
+    public string Reference { get; set; } = string.Empty;
+
+    /// <summary>Gets or sets the reason.</summary>
+    public string? Reason { get; set; }
 }
 
 /// <summary>Vault item grant request from the website.</summary>
