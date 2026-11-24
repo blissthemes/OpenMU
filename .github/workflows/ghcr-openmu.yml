@@ -1,0 +1,155 @@
+name: GHCR OpenMU (ProMU)
+
+# Builds Startup all-in-one image and pushes to GitHub Container Registry.
+# Does NOT publish to Docker Hub. Does NOT deploy Contabo (see promu deploy-openmu-production.yml).
+#
+# THIS FILE BELONGS IN GitHub repo blissthemes/OpenMU (not blissthemes/promu).
+# Lab root .gitignore excludes /OpenMU/ — push from C:\dev\mu-lab\OpenMU.
+#
+# Tags (never :latest):
+#   develop → lab-sha-<12>  (+ floating :develop)   — Lab only; Contabo must reject
+#   main    → sha-<12>      (+ floating :main)      — Production immutable
+#   PR      → local :ci-pr only (push: false)
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - "src/**"
+      - ".github/workflows/ghcr-openmu.yml"
+  pull_request:
+    branches: [main, develop]
+    paths:
+      - "src/**"
+      - ".github/workflows/ghcr-openmu.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ghcr-openmu-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build OpenMU image
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+      tag: ${{ steps.meta.outputs.tag_immutable }}
+      digest: ${{ steps.build.outputs.digest }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image names (Lab vs Production tags)
+        id: meta
+        run: |
+          set -euo pipefail
+          OWNER=$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')
+          SHORT="${GITHUB_SHA:0:12}"
+          IMAGE="ghcr.io/${OWNER}/openmu"
+          BRANCH="${GITHUB_REF_NAME}"
+
+          case "$BRANCH" in
+            main)
+              # Production immutable — Contabo deploy accepts only this form
+              TAG="sha-${SHORT}"
+              ;;
+            develop)
+              # Lab immutable — never publish Production sha-* from develop
+              TAG="lab-sha-${SHORT}"
+              ;;
+            *)
+              if [ "${{ github.event_name }}" = "pull_request" ]; then
+                TAG="ci-pr"
+              else
+                echo "::error::Refusing image push from branch=${BRANCH} (only main/develop)"
+                exit 1
+              fi
+              ;;
+          esac
+
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          echo "tag_immutable=${TAG}" >> "$GITHUB_OUTPUT"
+          echo "short=${SHORT}" >> "$GITHUB_OUTPUT"
+          echo "branch=${BRANCH}" >> "$GITHUB_OUTPUT"
+          echo "Resolved ${IMAGE}:${TAG} (branch=${BRANCH})"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Login GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (PR — no push)
+        if: github.event_name == 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: src
+          file: src/Startup/Dockerfile
+          platforms: linux/amd64
+          push: false
+          load: true
+          tags: ${{ steps.meta.outputs.image }}:ci-pr
+
+      - name: Build + push
+        id: build
+        if: github.event_name != 'pull_request'
+        uses: docker/build-push-action@v6
+        with:
+          context: src
+          file: src/Startup/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag_immutable }}
+            ${{ steps.meta.outputs.image }}:${{ github.ref_name }}
+          labels: |
+            org.opencontainers.image.source=${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.ref.name=${{ github.ref_name }}
+
+      - name: Smoke inspect
+        if: github.event_name != 'pull_request'
+        run: |
+          docker buildx imagetools inspect "${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag_immutable }}"
+
+      - name: Discord notify
+        if: always() && github.event_name != 'pull_request'
+        continue-on-error: true
+        env:
+          WEBHOOK_URL: ${{ secrets.DISCORD_CICD_WEBHOOK_URL }}
+          IMAGE: ${{ steps.meta.outputs.image }}:${{ steps.meta.outputs.tag_immutable }}
+          STATUS: ${{ job.status }}
+        run: |
+          set +e
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "No DISCORD_CICD_WEBHOOK_URL — skip"
+            exit 0
+          fi
+          COLOR=5763719
+          [ "$STATUS" != "success" ] && COLOR=15548997
+          payload=$(jq -n \
+            --arg title "OpenMU GHCR ${STATUS}" \
+            --arg image "$IMAGE" \
+            --arg sha "${GITHUB_SHA:0:7}" \
+            --arg branch "${GITHUB_REF_NAME}" \
+            --arg url "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}" \
+            --argjson color "$COLOR" \
+            '{
+              username: "ProMU CI/CD",
+              allowed_mentions: { parse: [] },
+              embeds: [{
+                title: $title,
+                color: $color,
+                description: ("**Component:** OpenMU\n**Environment:** CI\n**Branch:** `" + $branch + "`\n**Commit:** `" + $sha + "`\n**Image:** `" + $image + "`\n[Actions run](" + $url + ")")
+              }]
+            }')
+          curl -sS -H "Content-Type: application/json" -d "$payload" "$WEBHOOK_URL" >/dev/null || true
+          exit 0
