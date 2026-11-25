@@ -1,5 +1,5 @@
 name: GHCR OpenMU
-# auto-deploy-trigger 2026-11-25T16:25:03.5883324+03:00 (ProMU)
+# auto-deploy-trigger-with-secret 2026-11-25T16:31:09.4127939+03:00
 
 # Builds Startup all-in-one image and pushes to GitHub Container Registry.
 # Does NOT publish to Docker Hub. Does NOT deploy Contabo (see promu deploy-openmu-production.yml).
