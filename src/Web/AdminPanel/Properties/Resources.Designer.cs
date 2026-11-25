@@ -8593,7 +8593,7 @@ namespace MUnique.OpenMU.Web.AdminPanel.Properties {
         }
         
         /// <summary>
-        ///   Looks up a localized string similar to Welcome to the admin panel of OpenMU..
+        ///   Looks up a localized string similar to Welcome to the admin panel of ProMu..
         /// </summary>
         public static string WelcomeMessage {
             get {

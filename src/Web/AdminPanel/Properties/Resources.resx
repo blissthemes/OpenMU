@@ -259,7 +259,7 @@
     <value>Game Server</value>
   </data>
   <data name="WelcomeMessage" xml:space="preserve">
-    <value>Welcome to the admin panel of OpenMU.</value>
+    <value>Welcome to the admin panel of ProMu.</value>
   </data>
   <data name="OpenMUAdminPanel" xml:space="preserve">
     <value>OpenMU AdminPanel</value>

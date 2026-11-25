@@ -236,7 +236,7 @@ internal partial class NpcInitialization
             this.ItemHelper.CreateSetItem(82, 12, ItemGroups.Gloves, null, 3, 1, true),    // Wind Gloves +3+4+L
             this.ItemHelper.CreateSetItem(84, 12, ItemGroups.Boots, null, 3, 1, true),    // Wind Boots +3+4+L
 
-            this.ItemHelper.CreateItem(86, 29, 13, 1, 0), // Armor of Guardsman
+            // ProMU: Armor of Guardsman removed from Elf Lala (Noria) shop.
             this.ItemHelper.CreateItem(96, 10, 14, 1, 0), // Town Portal Scroll
 
             this.ItemHelper.CreateWeapon(97, ItemGroups.Bows, 7, 0, 0, false, false, null), // Bolt
