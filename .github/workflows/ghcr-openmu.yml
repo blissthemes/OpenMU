@@ -1,5 +1,6 @@
-name: GHCR OpenMU
-# auto-deploy-trigger-retry 2026-11-25T16:42:41.0000829+03:00
+﻿name: GHCR OpenMU
+# auto-deploy-trigger-retry 2026-11-27T00:17:23.2288613+03:00
+# rebuild-trigger full-prod-refresh
 
 # Builds Startup all-in-one image and pushes to GitHub Container Registry.
 # Does NOT publish to Docker Hub. Does NOT deploy Contabo (see promu deploy-openmu-production.yml).
